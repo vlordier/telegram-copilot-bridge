@@ -78,11 +78,11 @@ export class TelegramSectionViewProvider implements vscode.WebviewViewProvider, 
           return;
         case "startPolling":
           await this.service.startPolling();
-          void vscode.window.showInformationMessage("Telegram polling started.");
+          void vscode.window.showInformationMessage("Telegram stream started.");
           return;
         case "stopPolling":
           await this.service.stopPolling();
-          void vscode.window.showInformationMessage("Telegram polling stopped.");
+          void vscode.window.showInformationMessage("Telegram stream stopped.");
           return;
         case "probeBot":
           await this.service.probeBot(true);
@@ -543,7 +543,7 @@ export class TelegramSectionViewProvider implements vscode.WebviewViewProvider, 
             '  <div class="guide">',
             '    <div class="guide-step"><strong>1. Create the bot</strong>Open Telegram and talk to @BotFather. Run /newbot and finish the setup.</div>',
             '    <div class="guide-step"><strong>2. Copy the token</strong>BotFather will return a token like 123456:ABCDEF. Keep it private.</div>',
-            '    <div class="guide-step"><strong>3. Open Telegram Config</strong>Save the token, optional chat allowlist, and polling settings there.</div>',
+            '    <div class="guide-step"><strong>3. Open Telegram Config</strong>Save the token, optional chat allowlist, and stream settings there.</div>',
             '  </div>',
             '  <div class="actions">',
             '    <button data-action="openConfigView">Open Telegram Config</button>',
@@ -551,7 +551,7 @@ export class TelegramSectionViewProvider implements vscode.WebviewViewProvider, 
             '</section>',
             '<section class="card">',
             '  <div class="card-title">What happens after setup</div>',
-            '  <div class="card-sub">Once configured, the extension can poll Telegram, open Copilot Chat, and keep an activity stream of incoming messages.</div>',
+            '  <div class="card-sub">Once configured, the extension opens a persistent long-poll stream to Telegram, forwards messages to Copilot Chat, and keeps an activity stream of incoming events.</div>',
             '</section>'
           ].join('');
           return;
@@ -584,7 +584,7 @@ export class TelegramSectionViewProvider implements vscode.WebviewViewProvider, 
           '      <div><span class="label">Last probe</span><span class="value">' + escapeHtml(relativeTime(state.lastProbeAt)) + '</span></div>',
           '      <div><span class="label">Last update id</span><span class="value">' + escapeHtml(String(state.lastUpdateId == null ? 'n/a' : state.lastUpdateId)) + '</span></div>',
           '    </div>',
-          '    <div class="badge ' + badgeClass(state.running) + '">' + (state.running ? 'Polling active' : 'Polling stopped') + '</div>',
+          '    <div class="badge ' + badgeClass(state.running) + '">' + (state.running ? 'Stream active' : 'Stream stopped') + '</div>',
           '    <div class="badge ' + badgeClass(state.modelAccess) + '">LM access: ' + escapeHtml(modelAccess) + '</div>',
           state.lastError ? '    <div class="callout error">' + escapeHtml(state.lastError) + '</div>' : '',
           state.lastPrompt ? '    <div class="callout">Last prompt ready. Use Open Last Prompt to resend it to Copilot.</div>' : '',
@@ -615,7 +615,7 @@ export class TelegramSectionViewProvider implements vscode.WebviewViewProvider, 
           noticeHtml(state),
           '<section class="card">',
           '  <div class="card-title">Telegram Config</div>',
-          '  <div class="card-sub">Secret token, allowlist and polling controls.</div>',
+          '  <div class="card-sub">Secret token, allowlist and stream controls.</div>',
           '  <div class="fields">',
           '    <div class="field">',
           '      <label for="botToken">Bot Token</label>',
@@ -626,15 +626,11 @@ export class TelegramSectionViewProvider implements vscode.WebviewViewProvider, 
           '      <textarea id="allowedChatIds" placeholder="One chat id per line">' + escapeHtml(state.allowedChatIds.join('\\n')) + '</textarea>',
           '    </div>',
           '    <div class="field">',
-          '      <label for="pollIntervalMs">Poll Interval (ms)</label>',
-          '      <input id="pollIntervalMs" type="number" min="250" step="250" value="' + escapeHtml(String(state.pollIntervalMs)) + '" />',
-          '    </div>',
-          '    <div class="field">',
-          '      <label for="longPollTimeoutSeconds">Long Poll Timeout (s)</label>',
+          '      <label for="longPollTimeoutSeconds">Stream Timeout (s)</label>',
           '      <input id="longPollTimeoutSeconds" type="number" min="1" max="50" step="1" value="' + escapeHtml(String(state.longPollTimeoutSeconds)) + '" />',
           '    </div>',
           '    <div class="check-row">',
-          '      <label class="check"><input id="pollingEnabled" type="checkbox" ' + (state.pollingEnabled ? 'checked' : '') + ' /> Start polling on activate</label>',
+          '      <label class="check"><input id="pollingEnabled" type="checkbox" ' + (state.pollingEnabled ? 'checked' : '') + ' /> Auto-start stream on activate</label>',
           '      <label class="check"><input id="openChatOnMessage" type="checkbox" ' + (state.openChatOnMessage ? 'checked' : '') + ' /> Open Copilot Chat on message</label>',
           '      <label class="check"><input id="autoReplyEnabled" type="checkbox" ' + (state.autoReplyEnabled ? 'checked' : '') + ' /> Auto-reply through language model API</label>',
           '      <label class="check"><input id="statusUpdatesEnabled" type="checkbox" ' + (state.statusUpdatesEnabled ? 'checked' : '') + ' /> Send progress updates back to Telegram</label>',
@@ -661,7 +657,7 @@ export class TelegramSectionViewProvider implements vscode.WebviewViewProvider, 
       }
 
       function renderActivity(state) {
-        let streamHtml = '<div class="empty">No events yet. Start polling to see incoming Telegram messages here.</div>';
+        let streamHtml = '<div class="empty">No events yet. Start the stream to see incoming Telegram messages here.</div>';
         if (state.stream.length) {
           streamHtml = '<div class="stream">' + state.stream.map((event) => {
             const tags = [];
@@ -701,7 +697,7 @@ export class TelegramSectionViewProvider implements vscode.WebviewViewProvider, 
           '  <div class="card-sub">Useful actions while testing the bridge.</div>',
           '  <div class="stack">',
           '    <div class="mini-card"><span class="label">Probe</span><span class="value">Verify the token and connected bot.</span></div>',
-          '    <div class="mini-card"><span class="label">Start/Stop</span><span class="value">Control Telegram polling without opening settings.</span></div>',
+          '    <div class="mini-card"><span class="label">Start/Stop</span><span class="value">Control the Telegram stream without opening settings.</span></div>',
           '    <div class="mini-card"><span class="label">Open Logs</span><span class="value">Open the Telegram Copilot Bridge output channel.</span></div>',
           '  </div>',
           '</section>'
@@ -742,7 +738,6 @@ export class TelegramSectionViewProvider implements vscode.WebviewViewProvider, 
 
         if (action === 'saveConfig') {
           const allowedChatIds = document.getElementById('allowedChatIds');
-          const pollIntervalMs = document.getElementById('pollIntervalMs');
           const longPollTimeoutSeconds = document.getElementById('longPollTimeoutSeconds');
           const pollingEnabled = document.getElementById('pollingEnabled');
           const openChatOnMessage = document.getElementById('openChatOnMessage');
@@ -757,7 +752,6 @@ export class TelegramSectionViewProvider implements vscode.WebviewViewProvider, 
               autoReplyEnabled: Boolean(autoReplyEnabled && autoReplyEnabled.checked),
               statusUpdatesEnabled: Boolean(statusUpdatesEnabled && statusUpdatesEnabled.checked),
               pollingEnabled: Boolean(pollingEnabled && pollingEnabled.checked),
-              pollIntervalMs: Number((pollIntervalMs && pollIntervalMs.value) || '2000'),
               longPollTimeoutSeconds: Number((longPollTimeoutSeconds && longPollTimeoutSeconds.value) || '25')
             }
           });

@@ -45,7 +45,6 @@ type TelegramSendMessageResult = {
 
 type TelegramConfig = {
   pollingEnabled: boolean;
-  pollIntervalMs: number;
   longPollTimeoutSeconds: number;
   allowedChatIds: string[];
   openChatOnMessage: boolean;
@@ -64,7 +63,7 @@ export class TelegramBridgeService implements vscode.Disposable {
   private readonly state: TelegramBridgeState = {
     configured: false,
     running: false,
-    mode: "polling",
+    mode: "stream",
     tokenStored: false,
     lastStartAt: null,
     lastProbeAt: null,
@@ -79,7 +78,6 @@ export class TelegramBridgeService implements vscode.Disposable {
     autoReplyEnabled: false,
     statusUpdatesEnabled: true,
     pollingEnabled: true,
-    pollIntervalMs: 2000,
     longPollTimeoutSeconds: 25,
     modelAccess: "unknown",
     lastNotice: null,
@@ -125,7 +123,6 @@ export class TelegramBridgeService implements vscode.Disposable {
     this.state.tokenStored = Boolean(token);
     this.state.configured = Boolean(token);
     this.state.pollingEnabled = config.pollingEnabled;
-    this.state.pollIntervalMs = config.pollIntervalMs;
     this.state.longPollTimeoutSeconds = config.longPollTimeoutSeconds;
     this.state.allowedChatIds = config.allowedChatIds;
     this.state.openChatOnMessage = config.openChatOnMessage;
@@ -166,7 +163,6 @@ export class TelegramBridgeService implements vscode.Disposable {
     autoReplyEnabled: boolean;
     statusUpdatesEnabled: boolean;
     pollingEnabled: boolean;
-    pollIntervalMs: number;
     longPollTimeoutSeconds: number;
   }): Promise<void> {
     const config = vscode.workspace.getConfiguration("telegramCopilot");
@@ -188,7 +184,6 @@ export class TelegramBridgeService implements vscode.Disposable {
         vscode.ConfigurationTarget.Workspace,
       ),
       config.update("pollingEnabled", payload.pollingEnabled, vscode.ConfigurationTarget.Workspace),
-      config.update("pollIntervalMs", payload.pollIntervalMs, vscode.ConfigurationTarget.Workspace),
       config.update(
         "longPollTimeoutSeconds",
         payload.longPollTimeoutSeconds,
@@ -203,7 +198,7 @@ export class TelegramBridgeService implements vscode.Disposable {
 
   public async startPolling(): Promise<void> {
     if (this.state.running) {
-      this.setNotice("info", "Telegram polling is already running.");
+      this.setNotice("info", "Telegram stream is already running.");
       this.emitState();
       return;
     }
@@ -212,11 +207,11 @@ export class TelegramBridgeService implements vscode.Disposable {
     this.state.lastStartAt = Date.now();
     this.state.lastError = null;
     this.pollAbortController = new AbortController();
-    this.pushEvent("system", "Polling started", "Listening for Telegram messages with getUpdates.");
-    this.setNotice("success", "Telegram polling started.");
+    this.pushEvent("system", "Stream started", "Listening for Telegram messages via long-poll stream.");
+    this.setNotice("success", "Telegram stream started.");
     this.emitState();
 
-    this.pollLoopPromise = this.runPollLoop(token, this.pollAbortController.signal).finally(() => {
+    this.pollLoopPromise = this.runStreamLoop(token, this.pollAbortController.signal).finally(() => {
       this.state.running = false;
       this.pollAbortController = null;
       this.pollLoopPromise = null;
@@ -226,7 +221,7 @@ export class TelegramBridgeService implements vscode.Disposable {
 
   public async stopPolling(): Promise<void> {
     if (!this.state.running) {
-      this.setNotice("info", "Telegram polling is already stopped.");
+      this.setNotice("info", "Telegram stream is already stopped.");
       this.emitState();
       return;
     }
@@ -236,8 +231,8 @@ export class TelegramBridgeService implements vscode.Disposable {
     } catch {
       // The loop already records the error state when needed.
     }
-    this.pushEvent("system", "Polling stopped", "Telegram polling loop stopped.");
-    this.setNotice("info", "Telegram polling stopped.");
+    this.pushEvent("system", "Stream stopped", "Telegram long-poll stream stopped.");
+    this.setNotice("info", "Telegram stream stopped.");
     this.emitState();
   }
 
@@ -346,7 +341,10 @@ export class TelegramBridgeService implements vscode.Disposable {
     this.emitState();
   }
 
-  private async runPollLoop(token: string, signal: AbortSignal): Promise<void> {
+  private async runStreamLoop(token: string, signal: AbortSignal): Promise<void> {
+    let reconnectDelayMs = 1000;
+    const maxReconnectDelayMs = 30_000;
+
     while (!signal.aborted) {
       try {
         const updates = await this.callTelegram<TelegramUpdate[]>(
@@ -360,6 +358,8 @@ export class TelegramBridgeService implements vscode.Disposable {
           signal,
         );
 
+        reconnectDelayMs = 1000;
+
         for (const update of updates) {
           if (signal.aborted) {
             break;
@@ -367,10 +367,9 @@ export class TelegramBridgeService implements vscode.Disposable {
           await this.handleUpdate(update);
         }
 
-        if (signal.aborted) {
-          break;
-        }
-        await this.delay(this.state.pollIntervalMs, signal);
+        // No artificial inter-request delay: Telegram's long-poll timeout keeps the
+        // connection open on the server side until updates arrive, so we loop back
+        // immediately to maintain a continuous stream.
       } catch (error) {
         if (signal.aborted) {
           break;
@@ -378,9 +377,17 @@ export class TelegramBridgeService implements vscode.Disposable {
         const message = this.getErrorMessage(error);
         this.state.lastError = message;
         this.setNotice("error", message);
-        this.pushEvent("error", "Polling error", message);
+        this.pushEvent("error", "Stream error", message);
         this.emitState();
-        await this.delay(Math.max(this.state.pollIntervalMs, 1500), signal);
+
+        await this.delay(reconnectDelayMs, signal);
+        reconnectDelayMs = Math.min(reconnectDelayMs * 2, maxReconnectDelayMs);
+
+        if (!signal.aborted) {
+          const resumeFrom = this.state.lastUpdateId != null ? `after update ${this.state.lastUpdateId}` : "from the beginning";
+          this.pushEvent("system", "Stream resuming", `Resuming stream ${resumeFrom}.`);
+          this.emitState();
+        }
       }
     }
   }
@@ -782,7 +789,6 @@ export class TelegramBridgeService implements vscode.Disposable {
 
     return {
       pollingEnabled: config.get<boolean>("pollingEnabled", true),
-      pollIntervalMs: Math.max(250, config.get<number>("pollIntervalMs", 2000)),
       longPollTimeoutSeconds: Math.max(1, config.get<number>("longPollTimeoutSeconds", 25)),
       allowedChatIds,
       openChatOnMessage: config.get<boolean>("openChatOnMessage", true),

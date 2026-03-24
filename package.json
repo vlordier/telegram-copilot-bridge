@@ -45,11 +45,11 @@
     "commands": [
       {
         "command": "telegramCopilot.startPolling",
-        "title": "Telegram Copilot: Start Polling"
+        "title": "Telegram Copilot: Start Stream"
       },
       {
         "command": "telegramCopilot.stopPolling",
-        "title": "Telegram Copilot: Stop Polling"
+        "title": "Telegram Copilot: Stop Stream"
       },
       {
         "command": "telegramCopilot.probeBot",
@@ -110,20 +110,14 @@
         "telegramCopilot.pollingEnabled": {
           "type": "boolean",
           "default": true,
-          "description": "Start Telegram polling automatically when the extension activates and a token exists."
-        },
-        "telegramCopilot.pollIntervalMs": {
-          "type": "number",
-          "default": 2000,
-          "minimum": 250,
-          "description": "Delay between polling cycles after each Telegram getUpdates request finishes."
+          "description": "Auto-start the Telegram long-poll stream when the extension activates and a token exists."
         },
         "telegramCopilot.longPollTimeoutSeconds": {
           "type": "number",
           "default": 25,
           "minimum": 1,
           "maximum": 50,
-          "description": "Telegram long polling timeout in seconds."
+          "description": "How long (in seconds) Telegram holds each long-poll connection open before returning an empty response. Higher values reduce request frequency."
         },
         "telegramCopilot.allowedChatIds": {
           "type": "array",

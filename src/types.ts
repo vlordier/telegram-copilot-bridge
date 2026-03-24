@@ -25,7 +25,7 @@ export interface StreamEvent {
 export interface TelegramBridgeState {
   configured: boolean;
   running: boolean;
-  mode: "polling";
+  mode: "polling" | "stream";
   tokenStored: boolean;
   lastStartAt: number | null;
   lastProbeAt: number | null;
@@ -40,7 +40,6 @@ export interface TelegramBridgeState {
   autoReplyEnabled: boolean;
   statusUpdatesEnabled: boolean;
   pollingEnabled: boolean;
-  pollIntervalMs: number;
   longPollTimeoutSeconds: number;
   modelAccess: "unknown" | "granted" | "not-granted" | "unavailable";
   lastNotice: UiNotice | null;
@@ -53,7 +52,6 @@ export interface SidebarConfigPayload {
   autoReplyEnabled: boolean;
   statusUpdatesEnabled: boolean;
   pollingEnabled: boolean;
-  pollIntervalMs: number;
   longPollTimeoutSeconds: number;
 }
 

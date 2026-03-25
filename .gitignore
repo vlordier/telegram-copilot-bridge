@@ -2,3 +2,11 @@ node_modules
 out
 *.vsix
 .husky/_
+
+# Never commit secrets or local environment files
+.env
+.env.*
+*.local
+secrets.json
+secrets.yaml
+secrets.yml

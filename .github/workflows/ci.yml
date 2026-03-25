@@ -10,6 +10,25 @@ env:
   HUSKY: 0
 
 jobs:
+  # ── Secret scanning ─────────────────────────────────────────────────────────
+  scan-secrets:
+    name: Secret Scan (Gitleaks)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── Lint, format & build ────────────────────────────────────────────────────
   lint-and-build:
     name: Lint, Format & Build
     runs-on: ubuntu-latest

@@ -1,1 +1,12 @@
+#!/bin/sh
+# ── Secret scan (zero-dependency) ────────────────────────────────────────────
+# Block commits that contain a Telegram bot token pattern.
+# Format: <8-10 digits>:<35 alphanumeric/_/- chars>  (issued by BotFather)
+if git diff --cached --unified=0 | grep '^+' | grep -qE '[0-9]{8,10}:[A-Za-z0-9_-]{35}'; then
+  printf '\n  \033[31m[BLOCKED] Possible Telegram bot token detected in staged changes.\033[0m\n'
+  printf '  Tokens must never be committed. Store them in VS Code secrets instead.\n\n'
+  exit 1
+fi
+
+# ── Lint and format staged files ─────────────────────────────────────────────
 npx lint-staged

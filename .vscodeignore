@@ -12,3 +12,4 @@ tsconfig.json
 .husky/**
 eslint.config.js
 .prettierrc
+.gitleaks.toml

@@ -10,8 +10,8 @@ type SidebarInboundMessage =
   | { type: "clearToken" }
   | { type: "saveConfig"; value: SidebarConfigPayload }
   | { type: "openConfigView" }
-  | { type: "startPolling" }
-  | { type: "stopPolling" }
+  | { type: "startStream" }
+  | { type: "stopStream" }
   | { type: "probeBot" }
   | { type: "clearStream" }
   | { type: "openLastPrompt" }
@@ -76,11 +76,11 @@ export class TelegramSectionViewProvider implements vscode.WebviewViewProvider, 
         case "openConfigView":
           await vscode.commands.executeCommand("telegramCopilot.focusConfig");
           return;
-        case "startPolling":
+        case "startStream":
           await this.service.startStream();
           void vscode.window.showInformationMessage("Telegram stream started.");
           return;
-        case "stopPolling":
+        case "stopStream":
           await this.service.stopStream();
           void vscode.window.showInformationMessage("Telegram stream stopped.");
           return;
@@ -591,8 +591,8 @@ export class TelegramSectionViewProvider implements vscode.WebviewViewProvider, 
           '  </div>',
           '  <div class="actions">',
           '    <button data-action="probeBot">Probe</button>',
-          '    <button data-action="startPolling">Start</button>',
-          '    <button data-action="stopPolling" class="secondary">Stop</button>',
+          '    <button data-action="startStream">Start</button>',
+          '    <button data-action="stopStream" class="secondary">Stop</button>',
           '    <button data-action="openLastPrompt" class="ghost">Open Last Prompt</button>',
           '  </div>',
           '</section>',

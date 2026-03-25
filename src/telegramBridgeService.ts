@@ -398,7 +398,8 @@ export class TelegramBridgeService implements vscode.Disposable {
         this.emitState();
 
         await this.delay(reconnectDelayMs, signal);
-        reconnectDelayMs = Math.min(reconnectDelayMs * 2, maxReconnectDelayMs);
+        // Multiply by 2 then add ±25 % random jitter before capping, to spread reconnects.
+        reconnectDelayMs = Math.min(Math.round(reconnectDelayMs * 2 * (0.75 + Math.random() * 0.5)), maxReconnectDelayMs);
 
         if (!signal.aborted) {
           const resumeTitle = this.state.lastUpdateId != null

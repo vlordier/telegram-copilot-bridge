@@ -2,7 +2,7 @@
 
 Control GitHub Copilot from a Telegram bot directly inside VS Code.
 
-Telegram Copilot Bridge listens to Telegram messages with long polling, opens GitHub Copilot Chat, and keeps a dedicated activity stream inside its own sidebar container.
+Telegram Copilot Bridge connects to Telegram via a continuous long-poll stream, opens GitHub Copilot Chat, and keeps a dedicated activity stream inside its own sidebar container.
 
 ## Features
 
@@ -17,7 +17,7 @@ Telegram Copilot Bridge listens to Telegram messages with long polling, opens Gi
 
 1. Create a Telegram bot with `@BotFather`
 2. Save the bot token in `Telegram Config`
-3. Start polling from the extension
+3. Start the live stream from the extension
 4. Send a message to the bot and forward prompts to GitHub Copilot
 
 ## Development

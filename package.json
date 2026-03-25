@@ -44,11 +44,11 @@
   "contributes": {
     "commands": [
       {
-        "command": "telegramCopilot.startPolling",
+        "command": "telegramCopilot.startStream",
         "title": "Telegram Copilot: Start Stream"
       },
       {
-        "command": "telegramCopilot.stopPolling",
+        "command": "telegramCopilot.stopStream",
         "title": "Telegram Copilot: Stop Stream"
       },
       {

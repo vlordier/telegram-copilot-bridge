@@ -24,6 +24,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("telegramCopilot.startStream", async () => {
+      await service?.startStream();
+    }),
+    vscode.commands.registerCommand("telegramCopilot.stopStream", async () => {
+      await service?.stopStream();
+    }),
+    // Backward-compatible aliases for existing keybindings / tasks.json references.
     vscode.commands.registerCommand("telegramCopilot.startPolling", async () => {
       await service?.startStream();
     }),

@@ -13,11 +13,6 @@ regex       = '''[0-9]{8,10}:[A-Za-z0-9_-]{35}'''
 tags        = ["telegram", "bot-token", "secret"]
 severity    = "critical"
 
-  [rules.allowlist]
-  # Hex-only strings of that length are common in other contexts (git SHAs, etc.)
-  # Exact false-positive patterns can be added here.
-  regexes = []
-
 # ── Global allowlist ──────────────────────────────────────────────────────────
 
 [allowlist]

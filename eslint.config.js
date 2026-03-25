@@ -1,38 +1,45 @@
 // @ts-check
 const tseslint = require("@typescript-eslint/eslint-plugin");
-const tsparser = require("@typescript-eslint/parser");
 const prettier = require("eslint-config-prettier");
 
 /** @type {import("eslint").Linter.Config[]} */
 module.exports = [
+  // Global ignores
   {
     ignores: ["out/**", "node_modules/**", "*.vsix"],
   },
+
+  // TypeScript-ESLint flat/recommended provides the parser + base rules
+  ...tseslint.configs["flat/recommended"],
+
+  // Project-specific overrides for type-aware linting
   {
     files: ["src/**/*.ts"],
     languageOptions: {
-      parser: tsparser,
       parserOptions: {
         project: "./tsconfig.json",
         sourceType: "module",
       },
     },
-    plugins: {
-      "@typescript-eslint": tseslint,
-    },
     rules: {
-      ...tseslint.configs["recommended"].rules,
-      "@typescript-eslint/no-explicit-any": "warn",
+      // Allow unused function parameters when prefixed with _ (not in the flat/recommended default)
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
-      "@typescript-eslint/explicit-function-return-type": "off",
+
+      // Type-aware rules (require parserOptions.project)
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": "error",
       "@typescript-eslint/await-thenable": "error",
       "@typescript-eslint/no-unnecessary-type-assertion": "error",
-      "no-console": "warn",
+
+      // Safer throw — replaces the deprecated core no-throw-literal
+      "@typescript-eslint/only-throw-error": "error",
+
+      // Core rules
       eqeqeq: ["error", "always"],
-      "no-throw-literal": "error",
+      "no-console": "warn",
     },
   },
+
+  // Disable Prettier-conflicting ESLint formatting rules (must be last)
   prettier,
 ];

@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: ["**"]
 
+env:
+  HUSKY: 0
+
 jobs:
   lint-and-build:
     name: Lint, Format & Build
@@ -30,7 +33,7 @@ jobs:
         run: npm run format:check
 
       - name: Lint
-        run: npm run lint
+        run: npm run lint -- --max-warnings 0
 
       - name: Compile TypeScript
         run: npm run compile

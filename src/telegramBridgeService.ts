@@ -101,6 +101,7 @@ export class TelegramBridgeService implements vscode.Disposable {
   }
 
   public async initialize(): Promise<void> {
+    this.log("info", "Initializing Telegram Copilot Bridge.");
     await this.refreshStateFromStorage();
     await this.probeBot(false);
     if (this.state.tokenStored && this.state.pollingEnabled) {
@@ -147,6 +148,7 @@ export class TelegramBridgeService implements vscode.Disposable {
       throw new Error("Bot token is required.");
     }
     await this.context.secrets.store(BOT_TOKEN_SECRET_KEY, normalizedToken);
+    this.log("info", "Bot token stored in VS Code secrets.");
     this.pushEvent("system", "Token saved", "Telegram bot token stored in VS Code secrets.");
     this.setNotice("success", "Telegram bot token saved in VS Code secrets.");
     await this.refreshStateFromStorage();
@@ -192,6 +194,7 @@ export class TelegramBridgeService implements vscode.Disposable {
 
   public async startPolling(): Promise<void> {
     if (this.state.running) {
+      this.log("warn", "startPolling called while polling is already running.");
       this.setNotice("info", "Telegram polling is already running.");
       this.emitState();
       return;
@@ -201,6 +204,7 @@ export class TelegramBridgeService implements vscode.Disposable {
     this.state.lastStartAt = Date.now();
     this.state.lastError = null;
     this.pollAbortController = new AbortController();
+    this.log("info", "Polling loop starting.");
     this.pushEvent("system", "Polling started", "Listening for Telegram messages with getUpdates.");
     this.setNotice("success", "Telegram polling started.");
     this.emitState();
@@ -209,16 +213,19 @@ export class TelegramBridgeService implements vscode.Disposable {
       this.state.running = false;
       this.pollAbortController = null;
       this.pollLoopPromise = null;
+      this.log("info", "Polling loop stopped.");
       this.emitState();
     });
   }
 
   public async stopPolling(): Promise<void> {
     if (!this.state.running) {
+      this.log("warn", "stopPolling called while polling is already stopped.");
       this.setNotice("info", "Telegram polling is already stopped.");
       this.emitState();
       return;
     }
+    this.log("info", "Stopping polling loop.");
     this.pollAbortController?.abort();
     try {
       await this.pollLoopPromise;
@@ -253,15 +260,10 @@ export class TelegramBridgeService implements vscode.Disposable {
       };
       this.state.lastProbeAt = Date.now();
       this.state.lastError = null;
-      this.setNotice(
-        "success",
-        result.username ? `Connected as @${result.username}.` : "Telegram bot probe succeeded.",
-      );
-      this.pushEvent(
-        "system",
-        "Probe OK",
-        result.username ? `Connected as @${result.username}.` : "Telegram bot probe succeeded.",
-      );
+      const probeMsg = result.username ? `Connected as @${result.username}.` : "Telegram bot probe succeeded.";
+      this.log("info", `Bot probe succeeded. ${probeMsg}`);
+      this.setNotice("success", probeMsg);
+      this.pushEvent("system", "Probe OK", probeMsg);
       this.emitState();
       if (showNotification) {
         void vscode.window.showInformationMessage(
@@ -270,6 +272,7 @@ export class TelegramBridgeService implements vscode.Disposable {
       }
     } catch (error) {
       const message = this.getErrorMessage(error);
+      this.log("error", `Bot probe failed: ${message}`);
       this.state.lastProbeAt = Date.now();
       this.state.lastError = message;
       this.setNotice("error", message);
@@ -459,8 +462,9 @@ export class TelegramBridgeService implements vscode.Disposable {
         telegramEvent?.username,
       );
       return;
-    } catch {
-      // Fall back to opening chat without a prefilled query.
+    } catch (prefillError) {
+      // Prefilling the query is not supported by this VS Code build; fall back to clipboard.
+      this.log("warn", `Chat prefill not supported, falling back to clipboard: ${this.getErrorMessage(prefillError)}`);
     }
 
     try {
@@ -511,54 +515,58 @@ export class TelegramBridgeService implements vscode.Disposable {
       }
 
       const cts = new vscode.CancellationTokenSource();
-      const response = await model.sendRequest(
-        [vscode.LanguageModelChatMessage.User(prompt)],
-        {
-          justification: "Generate a Telegram reply from the local Telegram Copilot Bridge sidebar.",
-        },
-        cts.token,
-      );
+      try {
+        const response = await model.sendRequest(
+          [vscode.LanguageModelChatMessage.User(prompt)],
+          {
+            justification: "Generate a Telegram reply from the local Telegram Copilot Bridge sidebar.",
+          },
+          cts.token,
+        );
 
-      let text = "";
-      let streamedMessageId: number | undefined;
-      let lastStreamPublishAt = 0;
-      let lastStreamLength = 0;
+        let text = "";
+        let streamedMessageId: number | undefined;
+        let lastStreamPublishAt = 0;
+        let lastStreamLength = 0;
 
-      for await (const part of response.stream) {
-        if (part instanceof vscode.LanguageModelTextPart) {
-          text += part.value;
+        for await (const part of response.stream) {
+          if (part instanceof vscode.LanguageModelTextPart) {
+            text += part.value;
 
-          if (
-            this.state.statusUpdatesEnabled &&
-            this.shouldPublishStreamUpdate(text, lastStreamPublishAt, lastStreamLength)
-          ) {
-            streamedMessageId = await this.upsertTelegramReplyDraft(chatId, text, streamedMessageId);
-            lastStreamPublishAt = Date.now();
-            lastStreamLength = text.length;
+            if (
+              this.state.statusUpdatesEnabled &&
+              this.shouldPublishStreamUpdate(text, lastStreamPublishAt, lastStreamLength)
+            ) {
+              streamedMessageId = await this.upsertTelegramReplyDraft(chatId, text, streamedMessageId);
+              lastStreamPublishAt = Date.now();
+              lastStreamLength = text.length;
+            }
           }
         }
-      }
 
-      const normalized = text.trim();
-      if (!normalized) {
-        throw new Error("The language model returned an empty reply.");
-      }
+        const normalized = text.trim();
+        if (!normalized) {
+          throw new Error("The language model returned an empty reply.");
+        }
 
-      if (streamedMessageId) {
-        await this.editTelegramMessage(chatId, streamedMessageId, this.formatTelegramReply(normalized, true));
-      } else {
-        await this.sendTelegramMessage(chatId, normalized);
+        if (streamedMessageId) {
+          await this.editTelegramMessage(chatId, streamedMessageId, this.formatTelegramReply(normalized, true));
+        } else {
+          await this.sendTelegramMessage(chatId, normalized);
+        }
+        this.state.lastOutboundAt = Date.now();
+        this.setNotice("success", `Reply sent to ${username ?? chatId}.`);
+        this.pushEvent(
+          "outbound",
+          username ? `Reply sent to ${username}` : `Reply sent to ${chatId}`,
+          normalized,
+          chatId,
+          username,
+        );
+        this.emitState();
+      } finally {
+        cts.dispose();
       }
-      this.state.lastOutboundAt = Date.now();
-      this.setNotice("success", `Reply sent to ${username ?? chatId}.`);
-      this.pushEvent(
-        "outbound",
-        username ? `Reply sent to ${username}` : `Reply sent to ${chatId}`,
-        normalized,
-        chatId,
-        username,
-      );
-      this.emitState();
     } catch (error) {
       const message = this.getErrorMessage(error);
       this.state.lastError = message;

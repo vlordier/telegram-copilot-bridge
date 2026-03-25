@@ -99,9 +99,7 @@ export class TelegramSectionViewProvider implements vscode.WebviewViewProvider, 
           return;
       }
     } catch (error) {
-      void vscode.window.showErrorMessage(
-        error instanceof Error ? error.message : String(error),
-      );
+      void vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -465,15 +463,17 @@ export class TelegramSectionViewProvider implements vscode.WebviewViewProvider, 
   </head>
   <body>
     <div class="shell">
-      ${this.section === "overview"
-        ? `<section class="hero">
+      ${
+        this.section === "overview"
+          ? `<section class="hero">
         <img src="${iconUri}" alt="Telegram Copilot" />
         <div>
           <div class="hero-title">Telegram Copilot Bridge</div>
           <div class="hero-sub">Control GitHub Copilot from a Telegram bot.</div>
         </div>
       </section>`
-        : ""}
+          : ""
+      }
       <div id="content"></div>
     </div>
 

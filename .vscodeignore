@@ -8,3 +8,8 @@ tsconfig.json
 **/*.ts
 **/*.map
 **/.DS_Store
+.github/**
+.husky/**
+eslint.config.js
+.prettierrc
+.gitleaks.toml

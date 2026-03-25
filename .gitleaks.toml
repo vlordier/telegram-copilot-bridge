@@ -1,0 +1,27 @@
+# Gitleaks configuration for telegram-copilot-bridge.
+# See https://github.com/gitleaks/gitleaks for the full schema.
+
+title = "telegram-copilot-bridge secret rules"
+
+# ── Custom rules ──────────────────────────────────────────────────────────────
+
+[[rules]]
+id          = "telegram-bot-token"
+description = "Telegram bot token — format <bot_id>:<secret> (BotFather)"
+# bot_id is 8-10 digits; secret is exactly 35 chars from [A-Za-z0-9_-]
+regex       = '''[0-9]{8,10}:[A-Za-z0-9_-]{35}'''
+tags        = ["telegram", "bot-token", "secret"]
+severity    = "critical"
+
+# ── Global allowlist ──────────────────────────────────────────────────────────
+
+[allowlist]
+description = "Global allowlist"
+paths = [
+  # Lock files contain many hash-like strings that aren't secrets
+  "package-lock.json",
+  "yarn.lock",
+  "pnpm-lock.yaml",
+  # Compiled output is never committed but guard against accidental inclusion
+  "out/",
+]

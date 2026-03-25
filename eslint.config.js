@@ -1,5 +1,5 @@
 // @ts-check
-const tseslint = require("@typescript-eslint/eslint-plugin");
+const tseslint = require("typescript-eslint");
 const prettier = require("eslint-config-prettier");
 
 /** @type {import("eslint").Linter.Config[]} */
@@ -9,8 +9,8 @@ module.exports = [
     ignores: ["out/**", "node_modules/**", "*.vsix"],
   },
 
-  // TypeScript-ESLint flat/recommended provides the parser + base rules
-  ...tseslint.configs["flat/recommended"],
+  // typescript-eslint flat/recommended provides the parser + base rules
+  ...tseslint.configs.recommended,
 
   // Project-specific overrides for type-aware linting
   {

@@ -77,11 +77,11 @@ export class TelegramSectionViewProvider implements vscode.WebviewViewProvider, 
           await vscode.commands.executeCommand("telegramCopilot.focusConfig");
           return;
         case "startPolling":
-          await this.service.startPolling();
+          await this.service.startStream();
           void vscode.window.showInformationMessage("Telegram stream started.");
           return;
         case "stopPolling":
-          await this.service.stopPolling();
+          await this.service.stopStream();
           void vscode.window.showInformationMessage("Telegram stream stopped.");
           return;
         case "probeBot":

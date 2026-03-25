@@ -25,10 +25,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   context.subscriptions.push(
     vscode.commands.registerCommand("telegramCopilot.startPolling", async () => {
-      await service?.startPolling();
+      await service?.startStream();
     }),
     vscode.commands.registerCommand("telegramCopilot.stopPolling", async () => {
-      await service?.stopPolling();
+      await service?.stopStream();
     }),
     vscode.commands.registerCommand("telegramCopilot.probeBot", async () => {
       await service?.probeBot(true);
